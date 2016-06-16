@@ -629,6 +629,11 @@ func (stub *ChaincodeStub) GetCallerMetadata() ([]byte, error) {
 	return stub.securityContext.Metadata, nil
 }
 
+// GetAttributesData returns data to handle attributes in the transaction.
+func (stub *ChaincodeStub) GetAttributesData() ([]byte, error) {
+	return stub.securityContext.AttributesData, nil
+}
+
 // GetBinding returns the transaction binding
 func (stub *ChaincodeStub) GetBinding() ([]byte, error) {
 	return stub.securityContext.Binding, nil

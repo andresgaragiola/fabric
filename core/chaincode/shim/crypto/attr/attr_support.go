@@ -22,6 +22,7 @@ import (
 	"errors"
 
 	"github.com/hyperledger/fabric/core/crypto/attributes"
+	attributespb "github.com/hyperledger/fabric/core/crypto/attributes/proto"
 	"github.com/hyperledger/fabric/core/crypto/primitives"
 )
 
@@ -36,11 +37,8 @@ type chaincodeHolder interface {
 	// GetCallerCertificate returns caller certificate
 	GetCallerCertificate() ([]byte, error)
 
-	// GetCallerMetadata returns caller metadata
-	/*
-			TODO: ##attributes-keys-pending This code have be redefined to avoid use of metadata field.
-		GetCallerMetadata() ([]byte, error)
-	*/
+	// GetAttributesData returns data to handle attributes in the transaction.
+	GetAttributesData() ([]byte, error)
 }
 
 //AttributesHandler is an entity can be used to both verify and read attributes.
@@ -84,12 +82,18 @@ type AttributesHandlerImpl struct {
 }
 
 type chaincodeHolderImpl struct {
-	Certificate []byte
+	Certificate    []byte
+	AttributesData []byte
 }
 
 // GetCallerCertificate returns caller certificate
 func (holderImpl *chaincodeHolderImpl) GetCallerCertificate() ([]byte, error) {
 	return holderImpl.Certificate, nil
+}
+
+// GetAttributesData returns data to handle attributes in the transaction.
+func (holderImpl *chaincodeHolderImpl) GetAttributesData() ([]byte, error) {
+	return holderImpl.AttributesData, nil
 }
 
 //GetValueFrom returns the value of 'attributeName0' from a cert.
@@ -119,25 +123,22 @@ func NewAttributesHandlerImpl(holder chaincodeHolder) (*AttributesHandlerImpl, e
 
 	keys := make(map[string][]byte)
 
-	/*
-			TODO: ##attributes-keys-pending This code have be redefined to avoid use of metadata field.
+	//Getting Attributes Metadata from security context.
+	var attributesData *attributespb.AttributesData
+	var rawData []byte
+	rawData, err = holder.GetAttributesData()
+	if err != nil {
+		return nil, err
+	}
 
-		//Getting Attributes Metadata from security context.
-		var attrsMetadata *attributespb.AttributesMetadata
-		var rawMetadata []byte
-		rawMetadata, err = holder.GetCallerMetadata()
-		if err != nil {
-			return nil, err
-		}
-
-		if rawMetadata != nil {
-			attrsMetadata, err = attributes.GetAttributesMetadata(rawMetadata)
-			if err == nil {
-				for _, entry := range attrsMetadata.Entries {
-					keys[entry.AttributeName] = entry.AttributeKey
-				}
+	if rawData != nil {
+		attributesData, err = attributes.GetAttributesData(rawData)
+		if err == nil {
+			for _, entry := range attributesData.Entries {
+				keys[entry.AttributeName] = entry.AttributeKey
 			}
-		}*/
+		}
+	}
 
 	cache := make(map[string][]byte)
 	return &AttributesHandlerImpl{tcert, cache, keys, nil, false}, nil

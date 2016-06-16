@@ -17,10 +17,15 @@ limitations under the License.
 package crypto
 
 import (
+	"errors"
+
 	"github.com/golang/protobuf/proto"
+	"github.com/hyperledger/fabric/core/crypto/attributes"
 	"github.com/hyperledger/fabric/core/crypto/primitives"
 	"github.com/hyperledger/fabric/core/crypto/utils"
 	obc "github.com/hyperledger/fabric/protos"
+
+	"github.com/spf13/viper"
 )
 
 func (client *clientImpl) createTransactionNonce() ([]byte, error) {
@@ -42,7 +47,10 @@ func (client *clientImpl) createDeployTx(chaincodeDeploymentSpec *obc.ChaincodeD
 	}
 
 	// Copy metadata from ChaincodeSpec
-	tx.Metadata, err = getMetadata(chaincodeDeploymentSpec.GetChaincodeSpec(), tCert, attrs...)
+	tx.Metadata = chaincodeDeploymentSpec.ChaincodeSpec.Metadata
+
+	// Creates AttributesData
+	tx.AttributesData, err = getAttributesData(tCert, attrs...)
 	if err != nil {
 		client.Errorf("Failed creating new transaction [%s].", err.Error())
 		return nil, err
@@ -79,21 +87,17 @@ func (client *clientImpl) createDeployTx(chaincodeDeploymentSpec *obc.ChaincodeD
 	return tx, nil
 }
 
-func getMetadata(chaincodeSpec *obc.ChaincodeSpec, tCert tCert, attrs ...string) ([]byte, error) {
-	//TODO this code is being commented due temporarily is not enabled attributes encryption.
-	/*
-		isAttributesEnabled := viper.GetBool("security.attributes.enabled")
-		if !isAttributesEnabled {
-			return chaincodeSpec.Metadata, nil
-		}
+func getAttributesData(tCert tCert, attrs ...string) ([]byte, error) {
+	isAttributesEnabled := viper.GetBool("security.attributes.enabled")
+	if !isAttributesEnabled {
+		return nil, nil
+	}
 
-		if tCert == nil {
-			return nil, errors.New("Invalid TCert.")
-		}
+	if tCert == nil {
+		return nil, errors.New("Invalid TCert.")
+	}
 
-		return attributes.CreateAttributesMetadata(tCert.GetCertificate().Raw, chaincodeSpec.Metadata, tCert.GetPreK0(), attrs)
-	*/
-	return chaincodeSpec.Metadata, nil
+	return attributes.CreateAttributesData(tCert.GetCertificate().Raw, tCert.GetPreK0(), attrs)
 }
 
 func (client *clientImpl) createExecuteTx(chaincodeInvocation *obc.ChaincodeInvocationSpec, uuid string, nonce []byte, tCert tCert, attrs ...string) (*obc.Transaction, error) {
@@ -105,7 +109,10 @@ func (client *clientImpl) createExecuteTx(chaincodeInvocation *obc.ChaincodeInvo
 	}
 
 	// Copy metadata from ChaincodeSpec
-	tx.Metadata, err = getMetadata(chaincodeInvocation.GetChaincodeSpec(), tCert, attrs...)
+	tx.Metadata = chaincodeInvocation.ChaincodeSpec.Metadata
+
+	// Creates AttributesData
+	tx.AttributesData, err = getAttributesData(tCert, attrs...)
 	if err != nil {
 		client.Errorf("Failed creating new transaction [%s].", err.Error())
 		return nil, err
@@ -150,7 +157,10 @@ func (client *clientImpl) createQueryTx(chaincodeInvocation *obc.ChaincodeInvoca
 	}
 
 	// Copy metadata from ChaincodeSpec
-	tx.Metadata, err = getMetadata(chaincodeInvocation.GetChaincodeSpec(), tCert, attrs...)
+	tx.Metadata = chaincodeInvocation.ChaincodeSpec.Metadata
+
+	// Creates AttributesData
+	tx.AttributesData, err = getAttributesData(tCert, attrs...)
 	if err != nil {
 		client.Errorf("Failed creating new transaction [%s].", err.Error())
 		return nil, err

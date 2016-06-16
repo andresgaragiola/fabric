@@ -202,55 +202,55 @@ func GetValueForAttribute(attributeName string, preK0 []byte, cert *x509.Certifi
 	return value, err
 }
 
-func createAttributesHeaderEntry(preK0 []byte) *pb.AttributesMetadataEntry {
+func createAttributesHeaderEntry(preK0 []byte) *pb.AttributesDataEntry {
 	attKey := getAttributeKey(preK0, HeaderAttributeName)
-	return &pb.AttributesMetadataEntry{AttributeName: HeaderAttributeName, AttributeKey: attKey}
+	return &pb.AttributesDataEntry{AttributeName: HeaderAttributeName, AttributeKey: attKey}
 }
 
-func createAttributesMetadataEntry(attributeName string, preK0 []byte) *pb.AttributesMetadataEntry {
+func createAttributesDataEntry(attributeName string, preK0 []byte) *pb.AttributesDataEntry {
 	attKey := getAttributeKey(preK0, attributeName)
-	return &pb.AttributesMetadataEntry{AttributeName: attributeName, AttributeKey: attKey}
+	return &pb.AttributesDataEntry{AttributeName: attributeName, AttributeKey: attKey}
 }
 
-//CreateAttributesMetadataObjectFromCert creates an AttributesMetadata object from certificate "cert", metadata and the attributes keys.
-func CreateAttributesMetadataObjectFromCert(cert *x509.Certificate, metadata []byte, preK0 []byte, attributeKeys []string) *pb.AttributesMetadata {
-	var entries []*pb.AttributesMetadataEntry
+//CreateAttributesDataObjectFromCert creates an AttributesData object from certificate "cert" and attributes keys.
+func CreateAttributesDataObjectFromCert(cert *x509.Certificate, preK0 []byte, attributeKeys []string) *pb.AttributesData {
+	var entries []*pb.AttributesDataEntry
 	for _, key := range attributeKeys {
 		if len(key) == 0 {
 			continue
 		}
 
-		entry := createAttributesMetadataEntry(key, preK0)
+		entry := createAttributesDataEntry(key, preK0)
 		entries = append(entries, entry)
 	}
 	headerEntry := createAttributesHeaderEntry(preK0)
 	entries = append(entries, headerEntry)
 
-	return &pb.AttributesMetadata{Metadata: metadata, Entries: entries}
+	return &pb.AttributesData{Entries: entries}
 }
 
-//CreateAttributesMetadataFromCert creates the AttributesMetadata from the original metadata and certificate "cert".
-func CreateAttributesMetadataFromCert(cert *x509.Certificate, metadata []byte, preK0 []byte, attributeKeys []string) ([]byte, error) {
-	attributesMetadata := CreateAttributesMetadataObjectFromCert(cert, metadata, preK0, attributeKeys)
+//CreateAttributesDataFromCert creates AttributesData from certificate "cert".
+func CreateAttributesDataFromCert(cert *x509.Certificate, preK0 []byte, attributeKeys []string) ([]byte, error) {
+	attributesData := CreateAttributesDataObjectFromCert(cert, preK0, attributeKeys)
 
-	return proto.Marshal(attributesMetadata)
+	return proto.Marshal(attributesData)
 }
 
-//CreateAttributesMetadata create the AttributesMetadata from the original metadata
-func CreateAttributesMetadata(raw []byte, metadata []byte, preK0 []byte, attributeKeys []string) ([]byte, error) {
+//CreateAttributesData create the AttributesData from certificate "raw"
+func CreateAttributesData(raw []byte, preK0 []byte, attributeKeys []string) ([]byte, error) {
 	cert, err := primitives.DERToX509Certificate(raw)
 	if err != nil {
 		return nil, err
 	}
 
-	return CreateAttributesMetadataFromCert(cert, metadata, preK0, attributeKeys)
+	return CreateAttributesDataFromCert(cert, preK0, attributeKeys)
 }
 
-//GetAttributesMetadata object from the original metadata "metadata".
-func GetAttributesMetadata(metadata []byte) (*pb.AttributesMetadata, error) {
-	attributesMetadata := &pb.AttributesMetadata{}
-	err := proto.Unmarshal(metadata, attributesMetadata)
-	return attributesMetadata, err
+//GetAttributesData object from the attributes data.
+func GetAttributesData(attributesDataRaw []byte) (*pb.AttributesData, error) {
+	attributesData := &pb.AttributesData{}
+	err := proto.Unmarshal(attributesDataRaw, attributesData)
+	return attributesData, err
 }
 
 //BuildAttributesHeader builds a header attribute from a map of attribute names and positions.

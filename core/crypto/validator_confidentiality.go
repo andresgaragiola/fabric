@@ -108,6 +108,17 @@ func (validator *validatorImpl) deepCloneAndDecryptTx1_1(tx *obc.Transaction) (*
 		clone.Metadata = metadata
 	}
 
+	// Decrypt AttributesData
+	if len(clone.AttributesData) != 0 {
+		attributesDataKey := primitives.HMACAESTruncated(key, []byte{4})
+		attributesData, err := primitives.CBCPKCS7Decrypt(attributesDataKey, utils.Clone(clone.AttributesData))
+		if err != nil {
+			validator.error("Failed decrypting attributesData [%s].", err.Error())
+			return nil, err
+		}
+		clone.AttributesData = attributesData
+	}
+
 	return clone, nil
 }
 
@@ -187,6 +198,16 @@ func (validator *validatorImpl) deepCloneAndDecryptTx1_2(tx *obc.Transaction) (*
 			return nil, err
 		}
 		clone.Metadata = metadata
+	}
+
+	// Decrypt AttributesData
+	if len(clone.AttributesData) != 0 {
+		attributesData, err := cipher.Process(clone.AttributesData)
+		if err != nil {
+			validator.error("Failed decrypting attributes data [%s].", err.Error())
+			return nil, err
+		}
+		clone.AttributesData = attributesData
 	}
 
 	return clone, nil

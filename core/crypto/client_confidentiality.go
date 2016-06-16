@@ -82,6 +82,16 @@ func (client *clientImpl) encryptTxVersion1_1(tx *obc.Transaction) error {
 		tx.Metadata = encryptedMetadata
 	}
 
+	// Encrypt AttributesData
+	if len(tx.AttributesData) != 0 {
+		attributesDataKey := primitives.HMACAESTruncated(txKey, []byte{4})
+		attributesData, err := primitives.CBCPKCS7Encrypt(attributesDataKey, tx.AttributesData)
+		if err != nil {
+			return err
+		}
+		tx.AttributesData = attributesData
+	}
+
 	return nil
 }
 
@@ -209,6 +219,17 @@ func (client *clientImpl) encryptTxVersion1_2(tx *obc.Transaction) error {
 			return err
 		}
 		tx.Metadata = encryptedMetadata
+	}
+
+	// Encrypt AttributesData using pkC
+	if len(tx.AttributesData) != 0 {
+		encryptedAttributesData, err := cipher.Process(tx.AttributesData)
+		if err != nil {
+			client.error("Failed encrypting attributes data: [%s]", err)
+
+			return err
+		}
+		tx.AttributesData = encryptedAttributesData
 	}
 
 	return nil
