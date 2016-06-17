@@ -39,8 +39,6 @@
 							</div>
 							<input type="checkbox" id="tsd-filter-inherited" checked />
 							<label class="tsd-widget" for="tsd-filter-inherited">Inherited</label>
-							<input type="checkbox" id="tsd-filter-only-exported" />
-							<label class="tsd-widget" for="tsd-filter-only-exported">Only exported</label>
 						</div>
 					</div>
 					<a href="#" class="tsd-widget menu no-caption" data-toggle="menu">Menu</a>
@@ -186,51 +184,51 @@ chain.enroll(<span class="hljs-string">"WebAppAdmin"</span>, <span class="hljs-s
 }
 </code></pre><h3 id="installing-hlc-from-npm">Installing hlc from npm</h3>
 				<p>To install <code>hlc</code> from npm simply execute the following command.</p>
-				<pre><code>npm <span class="hljs-operator"><span class="hljs-keyword">install</span> -<span class="hljs-keyword">g</span> hlc</span>
+				<pre><code>npm <span class="hljs-keyword">install</span> -g hlc
 </code></pre><h3 id="chaincode-deployment-directory-structure">Chaincode Deployment Directory structure</h3>
 				<p>To have the chaincode deployment succeed in network mode, you must properly set up the chaincode project outside of your Hyperledger Fabric source tree. These instructions will demonstrate how to properly set up the directory structure to deploy <em>chaincode_example02</em> in network mode.</p>
 				<p>The chaincode project must be placed inside the <code>src</code> directory in your local <code>$GOPATH</code>. For example, the <code>chaincode_example02</code> project may be placed inside <code>$GOPATH/src/</code> as shown below.</p>
-				<pre><code><span class="hljs-variable">$GOPATH</span>/src/github.com/chaincode_example02/
+				<pre><code><span class="hljs-meta"><span class="hljs-meta-keyword">$GOPATH</span>/src/github.com/chaincode_example02/</span>
 </code></pre><p>The chaincode project directory must contain project related code and also a <code>vendor</code> folder which contains the entire Hyperledger Fabric source tree. Currently, this is still a dependency to have the chaincode project deploy successfully. However, the entire fabric directory is not packaged into the deploy transaction when the payload is generated. The deployment process selects a specific set of files when creating the transaction payload. Correct project directory structure is shown below.</p>
-				<pre><code>ls -la <span class="hljs-variable">$GOPATH</span>/src/github.com/chaincode_example02/
+				<pre><code><span class="hljs-keyword">ls</span> -<span class="hljs-keyword">la</span> $GOPATH/src/github.<span class="hljs-keyword">com</span>/chaincode_example02/
 .
 ..
-chaincode_example02.go
+chaincode_example02.<span class="hljs-keyword">go</span>
 vendor
 
-ls -la <span class="hljs-variable">$GOPATH</span>/src/github.com/chaincode_example02/vendor/github.com/hyperledger/
+<span class="hljs-keyword">ls</span> -<span class="hljs-keyword">la</span> $GOPATH/src/github.<span class="hljs-keyword">com</span>/chaincode_example02/vendor/github.<span class="hljs-keyword">com</span>/hyperledger/
 .
 ..
 fabric
 </code></pre><p>Once you have placed your chaincode project inside the <code>src</code> directory in your local <code>$GOPATH</code> together with the <code>vendor</code> directory containing the Hyperledger Fabric, you need to verify that the chaincode builds in this directory. To do so execute <code>go build</code>. This step verifies that all of the chaincode dependencies are present.</p>
-				<pre><code>cd <span class="hljs-variable">$GOPATH</span>/src/github.com/chaincode_example02/
-go build
-</code></pre><p>Once the chaincode is built, you need to verify that <a href="https://github.com/hyperledger/fabric/blob/master/sdk/node/test/unit/chain-tests.js">chain-tests.js</a> unit test file points to the appropriate chaincode project path. The default directory is set to <code>github.com/chaincode_example02/</code> as shown below.</p>
-				<pre><code>// Path <span class="hljs-keyword">to</span> the local directory containing the chaincode project under <span class="hljs-variable">$GOPATH</span>
-var testChaincodePath = <span class="hljs-string">"github.com/chaincode_example02/"</span>;
+				<pre><code><span class="hljs-keyword">cd</span> $GOPATH/src/github.<span class="hljs-keyword">com</span>/chaincode_example02/
+<span class="hljs-keyword">go</span> build
+</code></pre><p>Once the chaincode is built, you need to verify that <a href="https://github.com/hyperledger/fabric/tree/master/sdk/node/test/unit/chain-tests.js">chain-tests.js</a> unit test file points to the appropriate chaincode project path. The default directory is set to <code>github.com/chaincode_example02/</code> as shown below.</p>
+				<pre><code><span class="hljs-comment">// Path to the local directory containing the chaincode project under $GOPATH</span>
+<span class="hljs-keyword">var</span> testChaincodePath = <span class="hljs-string">"github.com/chaincode_example02/"</span>;
 </code></pre><p>Set the <code>DEPLOY_MODE</code> environment variable to <code>net</code> and run the chain-tests as follows:</p>
-				<pre><code>cd $GOPATH/src/github.com/hyperledger/fabric/sdk/<span class="hljs-keyword">node</span><span class="hljs-identifier">
-</span><span class="hljs-title">export</span> <span class="hljs-variable">DEPLOY_MODE=</span>'net'
-<span class="hljs-keyword">node</span><span class="hljs-identifier"> </span><span class="hljs-title">test</span>/unit/chain-tests.js | node_modules/.bin/tap-<span class="hljs-operator">spec</span>
+				<pre><code>cd $GOPATH/src/github.com/hyperledger/fabric/sdk/<span class="hljs-keyword">node</span>
+<span class="hljs-title">export</span> <span class="hljs-attr">DEPLOY_MODE=</span>'net'
+<span class="hljs-keyword">node</span> <span class="hljs-title">test</span>/unit/chain-tests.js | node_modules/.bin/tap-<span class="hljs-keyword">spec</span>
 </code></pre><h3 id="enabling-tls">Enabling TLS</h3>
 				<p>If you wish to activate TLS connection with the member services the following actions are needed:</p>
 				<ul>
 					<li>Modify <code>$GOPATH/src/github.com/hyperledger/fabric/membersrvc/membersrvc.yaml</code> as follows:</li>
 				</ul>
-				<pre><code><span class="hljs-attribute">server</span>:
-     <span class="hljs-attribute">tls</span>:
-        <span class="hljs-attribute">certfile</span>: <span class="hljs-string">"/var/hyperledger/production/.membersrvc/tlsca.cert"</span>
-        <span class="hljs-attribute">keyfile</span>: <span class="hljs-string">"/var/hyperledger/production/.membersrvc/tlsca.priv"</span>
+				<pre><code><span class="hljs-symbol">server:</span>
+<span class="hljs-symbol">     tls:</span>
+<span class="hljs-symbol">        certfile:</span> <span class="hljs-string">"/var/hyperledger/production/.membersrvc/tlsca.cert"</span>
+<span class="hljs-symbol">        keyfile:</span> <span class="hljs-string">"/var/hyperledger/production/.membersrvc/tlsca.priv"</span>
 </code></pre><p>This is needed to instruct the member services on which tls cert and key to use.  </p>
 				<ul>
 					<li>Modify <code>$GOPATH/src/github.com/hyperledger/fabric/peer/core.yaml</code> as follows:</li>
 				</ul>
-				<pre><code><span class="hljs-attribute">peer</span>:
-    <span class="hljs-attribute">pki</span>:
-        <span class="hljs-attribute">tls</span>:
-            <span class="hljs-attribute">enabled</span>: true
-            <span class="hljs-attribute">rootcert</span>:
-                <span class="hljs-attribute">file</span>: <span class="hljs-string">"/var/hyperledger/production/.membersrvc/tlsca.cert"</span>
+				<pre><code><span class="hljs-symbol">peer:</span>
+<span class="hljs-symbol">    pki:</span>
+<span class="hljs-symbol">        tls:</span>
+<span class="hljs-symbol">            enabled:</span> true
+<span class="hljs-symbol">            rootcert:</span>
+<span class="hljs-symbol">                file:</span> <span class="hljs-string">"/var/hyperledger/production/.membersrvc/tlsca.cert"</span>
 </code></pre><p>This is needed to allow the peer to connect to the member services using TLS, otherwise the connection will fail.</p>
 				<ul>
 					<li><p>Bootstrap your member services and the peer. This is needed in order to have the file <em>tlsca.cert</em> generated by the member services.</p>
@@ -242,18 +240,18 @@ var testChaincodePath = <span class="hljs-string">"github.com/chaincode_example0
 				<h2 id="getting-set-up">Getting Set Up</h2>
 				<h4 id="setting-up-the-testing-environment">Setting up the testing environment</h4>
 				<p>From your command line terminal, move to the <code>devenv</code> subdirectory of your workspace environment. Log into a Vagrant terminal by executing the following command:</p>
-				<pre><code><span class="hljs-title">vagrant</span> ssh
+				<pre><code><span class="hljs-attribute">vagrant</span> ssh
 </code></pre><p>Build the <b>Certificate Authority (CA)</b> server with the commands below:</p>
-				<pre><code>cd <span class="hljs-variable">$GOPATH</span>/src/github.com/hyperledger/fabric/membersrvc
-go build
+				<pre><code><span class="hljs-keyword">cd</span> $GOPATH/src/github.<span class="hljs-keyword">com</span>/hyperledger/fabric/membersrvc
+<span class="hljs-keyword">go</span> build
 </code></pre><p>Next, enable the security and privacy settings on the peer by setting <code>security.enabled</code> and <code>security.privacy</code> settings to <code>true</code> inside the <a href="https://github.com/hyperledger/fabric/blob/master/peer/core.yaml">core.yaml</a>. Then build the peer with the following steps.</p>
 				<p>Build the peer process with the commands below.</p>
-				<pre><code>cd <span class="hljs-variable">$GOPATH</span>/src/github.com/hyperledger/fabric/peer
-go build
+				<pre><code><span class="hljs-keyword">cd</span> $GOPATH/src/github.<span class="hljs-keyword">com</span>/hyperledger/fabric/peer
+<span class="hljs-keyword">go</span> build
 </code></pre><h3 id="running-the-sdk-unit-tests">Running the SDK unit tests</h3>
 				<p>HLC includes a set of unit tests implemented with the <a href="https://github.com/substack/tape">tape framework</a>. To run the unit tests, execute the following commands.</p>
-				<pre><code>cd <span class="hljs-variable">$GOPATH</span>/src/github.com/hyperledger/fabric
-make node-sdk-unit-tests
+				<pre><code>cd $GOPATH/src/github.com/hyperledger/fabric
+make <span class="hljs-keyword">node</span><span class="hljs-title">-sdk-unit-tests</span>
 </code></pre><p>The following are brief descriptions of each of the unit tests that are being run.</p>
 				<h4 id="registrar">registrar</h4>
 				<p>This test case exercises registering users with member services.  It also tests registering a registrar which can then register other users.</p>
@@ -265,7 +263,7 @@ make node-sdk-unit-tests
 				<p>This test case exercises the <em>asset_management_with_roles</em> chaincode when it has been deployed in both development mode and network mode.</p>
 				<h4 id="troublingshooting">Troublingshooting</h4>
 				<p>If you see errors stating that the client has already been registered/enrolled, keep in mind that you can perform the enrollment process only once, as the enrollmentSecret is a one-time-use password. You will see these errors if you have performed a user registration/enrollment and subsequently deleted the crypto tokens stored on the client side. The next time you try to enroll, errors similar to the ones below will be seen.</p>
-				<pre><code>   Error: identity <span class="hljs-operator">or</span> <span class="hljs-keyword">token</span> <span class="hljs-built_in">do</span> <span class="hljs-operator">not</span> match
+				<pre><code>   <span class="hljs-built_in">Error</span>: identity <span class="hljs-keyword">or</span> <span class="hljs-built_in">token</span> <span class="hljs-keyword">do</span> <span class="hljs-keyword">not</span> match
 </code></pre><pre><code>   Error: <span class="hljs-keyword">user</span> <span class="hljs-title">is</span> already registered
 </code></pre><p>To address this, remove any stored crypto material from the CA server by following the instructions <a href="https://github.com/hyperledger/fabric/blob/master/docs/API/SandboxSetup.md#removing-temporary-files-when-security-is-enabled">here</a>. You will also need to remove any of the crypto tokens stored on the client side by deleting the KeyValStore directory. That directory is configurable and is set to <code>/tmp/keyValStore</code> within the unit tests.</p>
 				<h2 id="going-deeper">Going Deeper</h2>
@@ -314,10 +312,22 @@ make node-sdk-unit-tests
 						<a href="globals.html"><em>Globals</em></a>
 					</li>
 					<li class=" tsd-kind-external-module">
+						<a href="modules/_src_crypto_.html">"src/crypto"</a>
+					</li>
+					<li class=" tsd-kind-external-module">
 						<a href="modules/_src_hlc_.html">"src/hlc"</a>
 					</li>
 					<li class=" tsd-kind-external-module">
-						<a href="modules/_typedoc_special_d_.html">"typedoc-<wbr>special.d"</a>
+						<a href="modules/_src_sdk_util_.html">"src/sdk_<wbr>util"</a>
+					</li>
+					<li class=" tsd-kind-external-module">
+						<a href="modules/_src_stats_.html">"src/stats"</a>
+					</li>
+					<li class=" tsd-kind-external-module">
+						<a href="modules/_typings_globals_debug_index_d_.html">"typings/globals/debug/index.d"</a>
+					</li>
+					<li class=" tsd-kind-external-module">
+						<a href="modules/_typings_globals_node_index_d_.html">"typings/globals/node/index.d"</a>
 					</li>
 				</ul>
 			</nav>

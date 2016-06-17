@@ -70,6 +70,9 @@ type AttributesHandler interface {
 	// Example:
 	//  attrValue,error:=handler.GetValue("position")
 	GetValue(attributeName string) ([]byte, error)
+
+	//GetEnrollmentID returns the enrollmentID associated with the Certificate.
+	GetEnrollmentID() (string, error)
 }
 
 //AttributesHandlerImpl is an implementation of AttributesHandler interface.
@@ -105,6 +108,16 @@ func GetValueFrom(attributeName string, cert []byte) ([]byte, error) {
 	return handler.GetValue(attributeName)
 }
 
+//GetValueFromUsingKeys returns the value of 'attributeName' using key 'attributeKey' from a cert.
+//Attribute key is a 64 bytes length byte array where first 32 bytes are header key and last 32 bytes are attribute key itself.
+func GetValueFromUsingKeys(attributeName string, attributeKey []byte, cert []byte) ([]byte, error) {
+	handler, err := NewAttributesHandlerImplFromCertAndKeys(cert, []string{attributeName}, [][]byte{attributeKey})
+	if err != nil {
+		return nil, err
+	}
+	return handler.GetValue(attributeName)
+}
+
 //NewAttributesHandlerImpl creates a new AttributesHandlerImpl from a pb.ChaincodeSecurityContext object.
 func NewAttributesHandlerImpl(holder chaincodeHolder) (*AttributesHandlerImpl, error) {
 	// Getting certificate
@@ -115,13 +128,6 @@ func NewAttributesHandlerImpl(holder chaincodeHolder) (*AttributesHandlerImpl, e
 	if certRaw == nil {
 		return nil, errors.New("The certificate can't be nil.")
 	}
-	var tcert *x509.Certificate
-	tcert, err = primitives.DERToX509Certificate(certRaw)
-	if err != nil {
-		return nil, err
-	}
-
-	keys := make(map[string][]byte)
 
 	//Getting Attributes Metadata from security context.
 	var attributesData *attributespb.AttributesData
@@ -132,14 +138,35 @@ func NewAttributesHandlerImpl(holder chaincodeHolder) (*AttributesHandlerImpl, e
 	}
 
 	if rawData != nil {
-		attributesData, err = attributes.GetAttributesData(rawData)
-		if err == nil {
-			for _, entry := range attributesData.Entries {
-				keys[entry.AttributeName] = entry.AttributeKey
-			}
+		attributesData, _ = attributes.GetAttributesData(rawData)
+	}
+	return NewAttributesHandlerImplFromCertAndAttributesData(certRaw, attributesData)
+}
+
+//NewAttributesHandlerImplFromCertAndKeys returns a new AttributeHanlderImpl using 'certRaw' as the certificate and using attributesNames and attributesKeys to create a new AttributesData object.
+//Each attributeKey inside 'attributesKeys' is a 64 bytes length byte array where first 32 bytes are header key and last 32 bytes are attribute key itself.
+func NewAttributesHandlerImplFromCertAndKeys(certRaw []byte, attributesNames []string, attributesKeys [][]byte) (*AttributesHandlerImpl, error) {
+	attributesData, err := attributes.CreateAttributesDataFromKeys(attributesNames, attributesKeys)
+	if err != nil {
+		return nil, err
+	}
+	return NewAttributesHandlerImplFromCertAndAttributesData(certRaw, attributesData)
+}
+
+//NewAttributesHandlerImplFromCertAndAttributesData returns a new AttributeHanlderImpl from DER certificate 'certRaw' and attributes data 'attributesData'.
+func NewAttributesHandlerImplFromCertAndAttributesData(certRaw []byte, attributesData *attributespb.AttributesData) (*AttributesHandlerImpl, error) {
+	tcert, err := primitives.DERToX509Certificate(certRaw)
+	if err != nil {
+		return nil, err
+	}
+	keys := make(map[string][]byte)
+
+	//AttributesData could be nil if encryption is not being used.
+	if attributesData != nil {
+		for _, entry := range attributesData.Entries {
+			keys[entry.AttributeName] = entry.AttributeKey
 		}
 	}
-
 	cache := make(map[string][]byte)
 	return &AttributesHandlerImpl{tcert, cache, keys, nil, false}, nil
 }
@@ -185,6 +212,31 @@ func (attributesHandler *AttributesHandlerImpl) GetValue(attributeName string) (
 	}
 	attributesHandler.cache[attributeName] = value
 	return value, nil
+}
+
+//GetEnrollmentID returns the enrollmentID associated with the Certificate.
+func (attributesHandler *AttributesHandlerImpl) GetEnrollmentID() (string, error) {
+	if attributesHandler.cache[attributes.EnrollmentIDAttributeName] != nil {
+		return string(attributesHandler.cache[attributes.EnrollmentIDAttributeName]), nil
+	}
+	enrollmentIDRaw, err := primitives.GetCriticalExtension(attributesHandler.cert, attributes.TCertEncEnrollmentID)
+	if err != nil {
+		return "", err
+	}
+	enrollmentID, err := attributes.CheckPaddingValue(enrollmentIDRaw)
+	if err != nil {
+		if attributesHandler.keys[attributes.EnrollmentIDAttributeName] == nil {
+			return "", errors.New("Cannot find decryption key for enrollmentID")
+		}
+
+		enrollmentID, err = attributes.DecryptAttributeValue(attributesHandler.keys[attributes.EnrollmentIDAttributeName], enrollmentIDRaw)
+		if err != nil {
+			return "", errors.New("Error decrypting value '" + err.Error() + "'")
+		}
+
+	}
+	attributesHandler.cache[attributes.EnrollmentIDAttributeName] = enrollmentID
+	return string(enrollmentID), nil
 }
 
 //VerifyAttribute is used to verify if the transaction certificate has an attribute with name *attributeName* and value *attributeValue* which are the input parameters received by this function.

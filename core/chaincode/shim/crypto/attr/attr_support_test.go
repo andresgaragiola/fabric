@@ -221,6 +221,105 @@ func TestNewAttributesHandlerImpl_NullAttributesData(t *testing.T) {
 	}
 }
 
+func TestNewAttributesHandlerImplFromCertAndKeys(t *testing.T) {
+	primitives.SetSecurityLevel("SHA3", 256)
+
+	tcert, preK0, err := loadTCertAndPreK0()
+	if err != nil {
+		t.Error(err)
+	}
+
+	positionKey := attributes.GetAttributeKey(preK0, "position")
+	headerKey := attributes.GetAttributeKey(preK0, attributes.HeaderAttributeName)
+	attributeKey := append(headerKey, positionKey...)
+	handler, err := NewAttributesHandlerImplFromCertAndKeys(tcert.Raw, []string{"position"}, [][]byte{attributeKey})
+	if err != nil {
+		t.Error(err)
+	}
+	isOk, err := handler.VerifyAttribute("position", []byte("Software Engineer"))
+	if err != nil {
+		t.Error(err)
+	}
+	if !isOk {
+		t.Errorf("Test failed, position could not be verified.")
+	}
+}
+
+func TestNewAttributesHandlerImplFromCertAndKeys_InvalidNumberAttributes(t *testing.T) {
+	primitives.SetSecurityLevel("SHA3", 256)
+
+	tcert, preK0, err := loadTCertAndPreK0()
+	if err != nil {
+		t.Error(err)
+	}
+
+	positionKey := attributes.GetAttributeKey(preK0, "position")
+	headerKey := attributes.GetAttributeKey(preK0, attributes.HeaderAttributeName)
+	attributeKey := append(headerKey, positionKey...)
+	_, err = NewAttributesHandlerImplFromCertAndKeys(tcert.Raw, []string{"position", "age"}, [][]byte{attributeKey})
+	if err == nil {
+		t.Errorf("Test failed an error should has appeared because amout of attributes name is more than amount of attributes keys.")
+	}
+}
+
+func TestNewAttributesHandlerImplFromCertAndKeys_InvalidCertificate(t *testing.T) {
+	primitives.SetSecurityLevel("SHA3", 256)
+
+	tcert, preK0, err := loadTCertAndPreK0()
+	if err != nil {
+		t.Error(err)
+	}
+
+	positionKey := attributes.GetAttributeKey(preK0, "position")
+	headerKey := attributes.GetAttributeKey(preK0, attributes.HeaderAttributeName)
+	attributeKey := append(headerKey, positionKey...)
+	tcertRaw := tcert.Raw
+	tcertRaw[0] = tcertRaw[0] + 10
+	_, err = NewAttributesHandlerImplFromCertAndKeys(tcertRaw, []string{"position"}, [][]byte{attributeKey})
+	if err == nil {
+		t.Errorf("Test failed an error should has appeared because amout of attributes name is more than amount of attributes keys.")
+	}
+}
+
+func TestGetValueFromUsingKeys(t *testing.T) {
+	primitives.SetSecurityLevel("SHA3", 256)
+
+	tcert, preK0, err := loadTCertAndPreK0()
+	if err != nil {
+		t.Error(err)
+	}
+
+	positionKey := attributes.GetAttributeKey(preK0, "position")
+	headerKey := attributes.GetAttributeKey(preK0, attributes.HeaderAttributeName)
+	attributeKey := append(headerKey, positionKey...)
+	value, err := GetValueFromUsingKeys("position", attributeKey, tcert.Raw)
+	if err != nil {
+		t.Error(err)
+	}
+
+	expected := []byte("Software Engineer")
+	if bytes.Compare(expected, value) != 0 {
+		t.Errorf("Test failed expected [%v] and result [%v]", expected, value)
+	}
+
+}
+
+func TestGetValueFromUsingKeys_InvalidKey(t *testing.T) {
+	primitives.SetSecurityLevel("SHA3", 256)
+
+	tcert, preK0, err := loadTCertAndPreK0()
+	if err != nil {
+		t.Error(err)
+	}
+
+	positionKey := attributes.GetAttributeKey(preK0, "position")
+	_, err = GetValueFromUsingKeys("position", positionKey, tcert.Raw)
+	if err == nil {
+		t.Errorf("Test failed, an error should has appeared because attribute key is invalid.")
+	}
+
+}
+
 func TestVerifyAttributes(t *testing.T) {
 	primitives.SetSecurityLevel("SHA3", 256)
 
@@ -564,6 +663,66 @@ func TestGetValue_InvalidAttribute_ValidAttribute(t *testing.T) {
 
 	if bytes.Compare(value, []byte("Software Engineer")) != 0 {
 		t.Fatalf("Value expected was [%v] and result was [%v].", []byte("Software Engineer"), value)
+	}
+}
+
+func TestGetEnrollmentID(t *testing.T) {
+	primitives.SetSecurityLevel("SHA3", 256)
+
+	tcert, prek0, err := loadTCertAndPreK0()
+	if err != nil {
+		t.Error(err)
+	}
+	tcertder := tcert.Raw
+	attributesData, err := attributes.CreateAttributesData(tcertder, prek0, attributeNames)
+	if err != nil {
+		t.Error(err)
+	}
+	stub := &chaincodeStubMock{callerCert: tcertder, attributesData: attributesData}
+	handler, err := NewAttributesHandlerImpl(stub)
+	if err != nil {
+		t.Error(err)
+	}
+
+	value, err := handler.GetEnrollmentID()
+	if err != nil {
+		t.Error(err)
+	}
+
+	expected := "diego\\institution_a\\00003"
+	if value != expected {
+		t.Errorf("Failed GetEnrollmentID() expected [%v] but return [%v]", expected, value)
+	}
+
+	//Second time from cache.
+	value, err = handler.GetEnrollmentID()
+	if err != nil {
+		t.Error(err)
+	}
+
+	if value != expected {
+		t.Errorf("Failed GetEnrollmentID() expected [%v] but return [%v]", expected, value)
+	}
+}
+
+func TestGetEnrollmentID_WithoutKey(t *testing.T) {
+	primitives.SetSecurityLevel("SHA3", 256)
+
+	tcert, preK0, err := loadTCertAndPreK0()
+	if err != nil {
+		t.Error(err)
+	}
+	positionKey := attributes.GetAttributeKey(preK0, "position")
+	headerKey := attributes.GetAttributeKey(preK0, attributes.HeaderAttributeName)
+	attributeKey := append(headerKey, positionKey...)
+	handler, err := NewAttributesHandlerImplFromCertAndKeys(tcert.Raw, []string{"position"}, [][]byte{attributeKey})
+	if err != nil {
+		t.Error(err)
+	}
+
+	_, err = handler.GetEnrollmentID()
+	if err == nil {
+		t.Errorf("Test failed attributes data has not a valid enrollmentIDKey.")
 	}
 }
 
