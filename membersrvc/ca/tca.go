@@ -48,12 +48,6 @@ var (
 	// TCertEncTCertIndex is the ASN1 object identifier of the TCert index.
 	TCertEncTCertIndex = asn1.ObjectIdentifier{1, 2, 3, 4, 5, 6, 7}
 
-	// TCertEncEnrollmentID is the ASN1 object identifier of the enrollment id.
-	TCertEncEnrollmentID = asn1.ObjectIdentifier{1, 2, 3, 4, 5, 6, 8}
-
-	// TCertAttributesHeaders is the ASN1 object identifier of attributes header.
-	TCertAttributesHeaders = asn1.ObjectIdentifier{1, 2, 3, 4, 5, 6, 9}
-
 	// Padding for encryption.
 	Padding = []byte{255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255}
 
@@ -516,16 +510,17 @@ func (tcap *TCAP) generateExtensions(tcertid *big.Int, tidx []byte, enrollmentCe
 	preK0 := mac.Sum(nil)
 
 	// Compute encrypted EnrollmentID
-	mac = hmac.New(primitives.GetDefaultHash(), preK0)
-	mac.Write([]byte("enrollmentID"))
-	enrollmentIDKey := mac.Sum(nil)[:32]
+	enrollmentIDKey := attributes.GetAttributeKey(preK0, attributes.EnrollmentIDAttributeName)
 
 	enrollmentID := []byte(enrollmentCert.Subject.CommonName)
 	enrollmentID = append(enrollmentID, Padding...)
 
-	encEnrollmentID, err := CBCEncrypt(enrollmentIDKey, enrollmentID)
-	if err != nil {
-		return nil, nil, err
+	encEnrollmentID := enrollmentID
+	if isEnabledAttributesEncryption() {
+		encEnrollmentID, err = CBCEncrypt(enrollmentIDKey, encEnrollmentID)
+		if err != nil {
+			return nil, nil, err
+		}
 	}
 
 	attributeIdentifierIndex := 9
@@ -558,7 +553,7 @@ func (tcap *TCAP) generateExtensions(tcertid *big.Int, tidx []byte, enrollmentCe
 	extensions = append(extensions, pkix.Extension{Id: TCertEncTCertIndex, Critical: true, Value: tidx})
 
 	// Append the encrypted EnrollmentID to the extensions
-	extensions = append(extensions, pkix.Extension{Id: TCertEncEnrollmentID, Critical: false, Value: encEnrollmentID})
+	extensions = append(extensions, pkix.Extension{Id: attributes.TCertEncEnrollmentID, Critical: false, Value: encEnrollmentID})
 
 	// Append the attributes header if there was attributes to include in the TCert
 	if len(attrs) > 0 {
@@ -572,7 +567,7 @@ func (tcap *TCAP) generateExtensions(tcertid *big.Int, tidx []byte, enrollmentCe
 				return nil, nil, err
 			}
 		}
-		extensions = append(extensions, pkix.Extension{Id: TCertAttributesHeaders, Critical: false, Value: headerValue})
+		extensions = append(extensions, pkix.Extension{Id: attributes.TCertAttributesHeaders, Critical: false, Value: headerValue})
 	}
 
 	return extensions, preK0, nil
