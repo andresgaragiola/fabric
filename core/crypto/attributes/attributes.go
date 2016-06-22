@@ -37,6 +37,9 @@ var (
 	// appended to this Object Identifier.
 	TCertEncAttributesBase = asn1.ObjectIdentifier{1, 2, 3, 4, 5, 6}
 
+	// TCertEncEnrollmentID is the ASN1 object identifier of the enrollment id.
+	TCertEncEnrollmentID = asn1.ObjectIdentifier{1, 2, 3, 4, 5, 6, 8}
+
 	// TCertAttributesHeaders is the ASN1 object identifier of attributes header.
 	TCertAttributesHeaders = asn1.ObjectIdentifier{1, 2, 3, 4, 5, 6, 9}
 
@@ -47,6 +50,12 @@ var (
 
 	//HeaderAttributeName is the name used to derivate the K used to encrypt/decrypt the header.
 	HeaderAttributeName = "attributeHeader"
+
+	//EnrollmentIDAttributeName is the name used to derivate the K used to encrypt/decrypt the enrollmentID.
+	EnrollmentIDAttributeName = "enrollmentID"
+
+	//Key size is the length used to derivate key.
+	keySize = 32
 )
 
 //ParseAttributesHeader parses a string and returns a map with the attributes.
@@ -142,14 +151,14 @@ func EncryptAttributeValue(attributeKey []byte, attributeValue []byte) ([]byte, 
 	return primitives.CBCPKCS7Encrypt(attributeKey, value)
 }
 
-//getAttributeKey returns the attributeKey derived from the preK0 to the attributeName.
-func getAttributeKey(preK0 []byte, attributeName string) []byte {
-	return primitives.HMACTruncated(preK0, []byte(attributeName), 32)
+//GetAttributeKey returns the attributeKey derived from the preK0 to the attributeName.
+func GetAttributeKey(preK0 []byte, attributeName string) []byte {
+	return primitives.HMACTruncated(preK0, []byte(attributeName), keySize)
 }
 
 //EncryptAttributeValuePK0 encrypts "attributeValue" using a key derived from preK0.
 func EncryptAttributeValuePK0(preK0 []byte, attributeName string, attributeValue []byte) ([]byte, error) {
-	attributeKey := getAttributeKey(preK0, attributeName)
+	attributeKey := GetAttributeKey(preK0, attributeName)
 	return EncryptAttributeValue(attributeKey, attributeValue)
 }
 
@@ -159,28 +168,18 @@ func DecryptAttributeValue(attributeKey []byte, encryptedValue []byte) ([]byte, 
 	if err != nil {
 		return nil, err
 	}
-	lenPadding := len(padding)
-	lenValue := len(value)
-	if lenValue < lenPadding {
-		return nil, errors.New("Error invalid value. Decryption verification failed.")
-	}
-	lenWithoutPadding := lenValue - lenPadding
-	if bytes.Compare(padding[0:lenPadding], value[lenWithoutPadding:lenValue]) != 0 {
-		return nil, errors.New("Error generating decryption key for value. Decryption verification failed.")
-	}
-	value = value[0:lenWithoutPadding]
-	return value, nil
+	return CheckPaddingValue(value)
 }
 
 //getKAndValueForAttribute derives K for the attribute "attributeName", checks the value padding and returns both key and decrypted value
 func getKAndValueForAttribute(attributeName string, preK0 []byte, cert *x509.Certificate) ([]byte, []byte, error) {
-	headerKey := getAttributeKey(preK0, HeaderAttributeName)
+	headerKey := GetAttributeKey(preK0, HeaderAttributeName)
 	value, encrypted, err := ReadTCertAttribute(cert, attributeName, headerKey)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	attributeKey := getAttributeKey(preK0, attributeName)
+	attributeKey := GetAttributeKey(preK0, attributeName)
 	if encrypted {
 		value, err = DecryptAttributeValue(attributeKey, value)
 		if err != nil {
@@ -202,55 +201,93 @@ func GetValueForAttribute(attributeName string, preK0 []byte, cert *x509.Certifi
 	return value, err
 }
 
-func createAttributesHeaderEntry(preK0 []byte) *pb.AttributesMetadataEntry {
-	attKey := getAttributeKey(preK0, HeaderAttributeName)
-	return &pb.AttributesMetadataEntry{AttributeName: HeaderAttributeName, AttributeKey: attKey}
+func createAttributesHeaderEntry(preK0 []byte) *pb.AttributesDataEntry {
+	attKey := GetAttributeKey(preK0, HeaderAttributeName)
+	return &pb.AttributesDataEntry{AttributeName: HeaderAttributeName, AttributeKey: attKey}
 }
 
-func createAttributesMetadataEntry(attributeName string, preK0 []byte) *pb.AttributesMetadataEntry {
-	attKey := getAttributeKey(preK0, attributeName)
-	return &pb.AttributesMetadataEntry{AttributeName: attributeName, AttributeKey: attKey}
+func createAttributesEnrollmentIDEntry(preK0 []byte) *pb.AttributesDataEntry {
+	attKey := GetAttributeKey(preK0, EnrollmentIDAttributeName)
+	return &pb.AttributesDataEntry{AttributeName: EnrollmentIDAttributeName, AttributeKey: attKey}
 }
 
-//CreateAttributesMetadataObjectFromCert creates an AttributesMetadata object from certificate "cert", metadata and the attributes keys.
-func CreateAttributesMetadataObjectFromCert(cert *x509.Certificate, metadata []byte, preK0 []byte, attributeKeys []string) *pb.AttributesMetadata {
-	var entries []*pb.AttributesMetadataEntry
+func createAttributesDataEntry(attributeName string, preK0 []byte) *pb.AttributesDataEntry {
+	attKey := GetAttributeKey(preK0, attributeName)
+	return newAttributeDataEntry(attributeName, attKey)
+}
+
+func newAttributeDataEntry(attributeName string, attributeKey []byte) *pb.AttributesDataEntry {
+	return &pb.AttributesDataEntry{AttributeName: attributeName, AttributeKey: attributeKey}
+}
+
+//CreateAttributesDataFromKeys creates an AttributesData object from a set of full attributes keys.
+func CreateAttributesDataFromKeys(attributeNames []string, attributeKeys [][]byte) (*pb.AttributesData, error) {
+	//Each key should by a []byte of 64 bytes length. First 'keySize' bytes are headerKey and second 'keySize' bytes are attribute key.
+	if attributeNames == nil || attributeKeys == nil {
+		return nil, errors.New("Attributes names and keys can't be nil.")
+	}
+	namesLen := len(attributeNames)
+	keysLen := len(attributeKeys)
+	if namesLen < 1 || keysLen < 1 {
+		return nil, errors.New("Error to create an AttributesData at least one attribute must be passed as parameter.")
+	}
+	if namesLen != keysLen {
+		return nil, errors.New("Error attribute names length must be equal to attribute keys length.")
+	}
+	var entries []*pb.AttributesDataEntry
+	for i, key := range attributeKeys {
+		if len(key) != 2*keySize {
+			return nil, errors.New("Attribute key should be 'keySize' bytes (headerKey) + 'keySize' bytes (attributeKey) = 2*'keySize' bytes")
+		}
+		entry := newAttributeDataEntry(attributeNames[i], key[keySize:])
+		entries = append(entries, entry)
+	}
+	headerKey := attributeKeys[0][:keySize]
+	headerEntry := newAttributeDataEntry(HeaderAttributeName, headerKey)
+	entries = append(entries, headerEntry)
+	return &pb.AttributesData{Entries: entries}, nil
+}
+
+//CreateAttributesDataObjectFromCert creates an AttributesData object from certificate "cert" and attributes keys.
+func CreateAttributesDataObjectFromCert(cert *x509.Certificate, preK0 []byte, attributeKeys []string) *pb.AttributesData {
+	var entries []*pb.AttributesDataEntry
 	for _, key := range attributeKeys {
 		if len(key) == 0 {
 			continue
 		}
 
-		entry := createAttributesMetadataEntry(key, preK0)
+		entry := createAttributesDataEntry(key, preK0)
 		entries = append(entries, entry)
 	}
 	headerEntry := createAttributesHeaderEntry(preK0)
-	entries = append(entries, headerEntry)
+	enrollIDEntry := createAttributesEnrollmentIDEntry(preK0)
+	entries = append(entries, headerEntry, enrollIDEntry)
 
-	return &pb.AttributesMetadata{Metadata: metadata, Entries: entries}
+	return &pb.AttributesData{Entries: entries}
 }
 
-//CreateAttributesMetadataFromCert creates the AttributesMetadata from the original metadata and certificate "cert".
-func CreateAttributesMetadataFromCert(cert *x509.Certificate, metadata []byte, preK0 []byte, attributeKeys []string) ([]byte, error) {
-	attributesMetadata := CreateAttributesMetadataObjectFromCert(cert, metadata, preK0, attributeKeys)
+//CreateAttributesDataFromCert creates AttributesData from certificate "cert".
+func CreateAttributesDataFromCert(cert *x509.Certificate, preK0 []byte, attributeKeys []string) ([]byte, error) {
+	attributesData := CreateAttributesDataObjectFromCert(cert, preK0, attributeKeys)
 
-	return proto.Marshal(attributesMetadata)
+	return proto.Marshal(attributesData)
 }
 
-//CreateAttributesMetadata create the AttributesMetadata from the original metadata
-func CreateAttributesMetadata(raw []byte, metadata []byte, preK0 []byte, attributeKeys []string) ([]byte, error) {
+//CreateAttributesData create the AttributesData from certificate "raw"
+func CreateAttributesData(raw []byte, preK0 []byte, attributeKeys []string) ([]byte, error) {
 	cert, err := primitives.DERToX509Certificate(raw)
 	if err != nil {
 		return nil, err
 	}
 
-	return CreateAttributesMetadataFromCert(cert, metadata, preK0, attributeKeys)
+	return CreateAttributesDataFromCert(cert, preK0, attributeKeys)
 }
 
-//GetAttributesMetadata object from the original metadata "metadata".
-func GetAttributesMetadata(metadata []byte) (*pb.AttributesMetadata, error) {
-	attributesMetadata := &pb.AttributesMetadata{}
-	err := proto.Unmarshal(metadata, attributesMetadata)
-	return attributesMetadata, err
+//GetAttributesData object from the attributes data.
+func GetAttributesData(attributesDataRaw []byte) (*pb.AttributesData, error) {
+	attributesData := &pb.AttributesData{}
+	err := proto.Unmarshal(attributesDataRaw, attributesData)
+	return attributesData, err
 }
 
 //BuildAttributesHeader builds a header attribute from a map of attribute names and positions.
@@ -270,4 +307,19 @@ func BuildAttributesHeader(attributesHeader map[string]int) ([]byte, error) {
 	}
 	header = []byte(headerPrefix + headerString)
 	return header, nil
+}
+
+//CheckPaddingValue checks the padding in 'value' and returns the 'value' without padding or an error if padding is invalid.
+func CheckPaddingValue(value []byte) ([]byte, error) {
+	lenPadding := len(padding)
+	lenValue := len(value)
+	if lenValue < lenPadding {
+		return nil, errors.New("Error invalid value.")
+	}
+	lenWithoutPadding := lenValue - lenPadding
+	if bytes.Compare(padding[0:lenPadding], value[lenWithoutPadding:lenValue]) != 0 {
+		return nil, errors.New("Invalid Padding")
+	}
+	value = value[0:lenWithoutPadding]
+	return value, nil
 }

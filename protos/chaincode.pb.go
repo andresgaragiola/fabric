@@ -289,7 +289,8 @@ type ChaincodeSecurityContext struct {
 	Binding        []byte                     `protobuf:"bytes,4,opt,name=binding,proto3" json:"binding,omitempty"`
 	Metadata       []byte                     `protobuf:"bytes,5,opt,name=metadata,proto3" json:"metadata,omitempty"`
 	ParentMetadata []byte                     `protobuf:"bytes,6,opt,name=parentMetadata,proto3" json:"parentMetadata,omitempty"`
-	TxTimestamp    *google_protobuf.Timestamp `protobuf:"bytes,7,opt,name=txTimestamp" json:"txTimestamp,omitempty"`
+	AttributesData []byte                     `protobuf:"bytes,7,opt,name=attributesData,proto3" json:"attributesData,omitempty"`
+	TxTimestamp    *google_protobuf.Timestamp `protobuf:"bytes,8,opt,name=txTimestamp" json:"txTimestamp,omitempty"`
 }
 
 func (m *ChaincodeSecurityContext) Reset()         { *m = ChaincodeSecurityContext{} }

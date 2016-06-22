@@ -131,5 +131,15 @@ func (validator *validatorImpl) deepCloneAndDecryptTx1_2(tx *obc.Transaction) (*
 		clone.Metadata = metadata
 	}
 
+	// Decrypt AttributesData
+	if len(clone.AttributesData) != 0 {
+		attributesData, err := cipher.Process(clone.AttributesData)
+		if err != nil {
+			validator.Errorf("Failed decrypting attributes data [%s].", err.Error())
+			return nil, err
+		}
+		clone.AttributesData = attributesData
+	}
+
 	return clone, nil
 }

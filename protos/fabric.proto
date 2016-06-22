@@ -51,7 +51,8 @@ message Transaction {
 
     bytes toValidators = 10;
     bytes cert = 11;
-    bytes signature = 12;
+    bytes attributesData = 12;
+    bytes signature = 13;
 }
 
 // TransactionBlock carries a batch of transactions.

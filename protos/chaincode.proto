@@ -117,7 +117,8 @@ message ChaincodeSecurityContext {
     bytes binding = 4;
     bytes metadata = 5;
     bytes parentMetadata = 6;
-    google.protobuf.Timestamp txTimestamp = 7; // transaction timestamp
+    bytes attributesData = 7;
+    google.protobuf.Timestamp txTimestamp = 8; // transaction timestamp
 }
 
 message ChaincodeMessage {
