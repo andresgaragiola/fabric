@@ -168,5 +168,16 @@ func (client *clientImpl) encryptTxVersion1_2(tx *obc.Transaction) error {
 		tx.Metadata = encryptedMetadata
 	}
 
+	// Encrypt AttributesData using pkC
+	if len(tx.AttributesData) != 0 {
+		encryptedAttributesData, err := cipher.Process(tx.AttributesData)
+		if err != nil {
+			client.Errorf("Failed encrypting attributes data: [%s]", err)
+
+			return err
+		}
+		tx.AttributesData = encryptedAttributesData
+	}
+
 	return nil
 }

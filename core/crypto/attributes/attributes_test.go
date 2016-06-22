@@ -55,7 +55,7 @@ func TestEncryptDecryptAttributeValuePK0(t *testing.T) {
 		t.Error(err)
 	}
 
-	attributeKey := getAttributeKey(preK0, "company")
+	attributeKey := GetAttributeKey(preK0, "company")
 
 	attribute, err := DecryptAttributeValue(attributeKey, encryptedAttribute)
 	if err != nil {
@@ -216,7 +216,7 @@ func TestReadAttributeHeader(t *testing.T) {
 		t.Error(err)
 	}
 
-	headerKey := getAttributeKey(prek0, HeaderAttributeName)
+	headerKey := GetAttributeKey(prek0, HeaderAttributeName)
 
 	header, encrypted, err := ReadAttributeHeader(tcert, headerKey)
 
@@ -256,7 +256,7 @@ func TestReadAttributeHeader_InvalidHeaderKey(t *testing.T) {
 		t.Error(err)
 	}
 
-	headerKey := getAttributeKey(prek0, HeaderAttributeName+"_invalid")
+	headerKey := GetAttributeKey(prek0, HeaderAttributeName+"_invalid")
 
 	_, _, err = ReadAttributeHeader(tcert, headerKey)
 
@@ -279,7 +279,7 @@ func TestReadTCertAttributeByPosition(t *testing.T) {
 		t.Error(err)
 	}
 
-	attributeKey := getAttributeKey(prek0, "position")
+	attributeKey := GetAttributeKey(prek0, "position")
 
 	attribute, err := DecryptAttributeValue(attributeKey, encryptedAttribute)
 
@@ -292,30 +292,26 @@ func TestReadTCertAttributeByPosition(t *testing.T) {
 	}
 }
 
-func TestGetAttributesMetadata(t *testing.T) {
-	metadata := []byte{255, 255, 255, 255}
-	entries := make([]*pb.AttributesMetadataEntry, 1)
-	var entry pb.AttributesMetadataEntry
+func TestGetAttributesData(t *testing.T) {
+	entries := make([]*pb.AttributesDataEntry, 1)
+	var entry pb.AttributesDataEntry
 	entry.AttributeName = "position"
 	entry.AttributeKey = []byte{0, 0, 0, 0}
 	entries[0] = &entry
-	attributesMetadata := pb.AttributesMetadata{Metadata: metadata, Entries: entries}
-	raw, err := proto.Marshal(&attributesMetadata)
+	attributesData := pb.AttributesData{Entries: entries}
+	raw, err := proto.Marshal(&attributesData)
 	if err != nil {
 		t.Error(err)
 	}
-	resultMetadata, err := GetAttributesMetadata(raw)
+	resultData, err := GetAttributesData(raw)
 	if err != nil {
 		t.Error(err)
 	}
-	if bytes.Compare(resultMetadata.Metadata, attributesMetadata.Metadata) != 0 {
-		t.Fatalf("Invalid metadata expected %v result %v", attributesMetadata.Metadata, resultMetadata.Metadata)
+	if resultData.Entries[0].AttributeName != attributesData.Entries[0].AttributeName {
+		t.Fatalf("Invalid first entry attribute name expected %v result %v", attributesData.Entries[0].AttributeName, resultData.Entries[0].AttributeName)
 	}
-	if resultMetadata.Entries[0].AttributeName != attributesMetadata.Entries[0].AttributeName {
-		t.Fatalf("Invalid first entry attribute name expected %v result %v", attributesMetadata.Entries[0].AttributeName, resultMetadata.Entries[0].AttributeName)
-	}
-	if bytes.Compare(resultMetadata.Entries[0].AttributeKey, attributesMetadata.Entries[0].AttributeKey) != 0 {
-		t.Fatalf("Invalid first entry attribute key expected %v result %v", attributesMetadata.Entries[0].AttributeKey, resultMetadata.Entries[0].AttributeKey)
+	if bytes.Compare(resultData.Entries[0].AttributeKey, attributesData.Entries[0].AttributeKey) != 0 {
+		t.Fatalf("Invalid first entry attribute key expected %v result %v", attributesData.Entries[0].AttributeKey, resultData.Entries[0].AttributeKey)
 	}
 }
 
@@ -338,22 +334,18 @@ func TestReadTCertAttributeByPosition_InvalidPositions(t *testing.T) {
 	}
 }
 
-func TestCreateAttributesMetadataObjectFromCert(t *testing.T) {
+func TestCreateAttributesDataObjectFromCert(t *testing.T) {
 	tcert, preK0, err := loadTCertAndPreK0()
 	if err != nil {
 		t.Error(err)
 	}
 
-	metadata := []byte{255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255}
 	attributeKeys := []string{"position"}
-	metadataObj := CreateAttributesMetadataObjectFromCert(tcert, metadata, preK0, attributeKeys)
-	if bytes.Compare(metadataObj.Metadata, metadata) != 0 {
-		t.Errorf("Invalid metadata result %v but expected %v", metadataObj.Metadata, metadata)
-	}
+	dataObj := CreateAttributesDataObjectFromCert(tcert, preK0, attributeKeys)
 
-	entries := metadataObj.GetEntries()
-	if len(entries) != 2 {
-		t.Errorf("Invalid entries in metadata result %v but expected %v", len(entries), 3)
+	entries := dataObj.GetEntries()
+	if len(entries) != 3 {
+		t.Errorf("Invalid entries in data result %v but expected %v", len(entries), 3)
 	}
 
 	firstEntry := entries[0]
@@ -370,33 +362,28 @@ func TestCreateAttributesMetadataObjectFromCert(t *testing.T) {
 	}
 }
 
-func TestCreateAttributesMetadata(t *testing.T) {
+func TestCreateAttributesData(t *testing.T) {
 	tcert, preK0, err := loadTCertAndPreK0()
 
 	if err != nil {
 		t.Error(err)
 	}
 	tcertRaw := tcert.Raw
-	metadata := []byte{255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255}
 	attributeKeys := []string{"position"}
-	metadataObjRaw, err := CreateAttributesMetadata(tcertRaw, metadata, preK0, attributeKeys)
+	dataObjRaw, err := CreateAttributesData(tcertRaw, preK0, attributeKeys)
 	if err != nil {
 		t.Error(err)
 	}
 
-	var metadataObj pb.AttributesMetadata
-	err = proto.Unmarshal(metadataObjRaw, &metadataObj)
+	var dataObj pb.AttributesData
+	err = proto.Unmarshal(dataObjRaw, &dataObj)
 	if err != nil {
 		t.Error(err)
 	}
 
-	if bytes.Compare(metadataObj.Metadata, metadata) != 0 {
-		t.Errorf("Invalid metadata result %v but expected %v", metadataObj.Metadata, metadata)
-	}
-
-	entries := metadataObj.GetEntries()
-	if len(entries) != 2 {
-		t.Errorf("Invalid entries in metadata result %v but expected %v", len(entries), 3)
+	entries := dataObj.GetEntries()
+	if len(entries) != 3 {
+		t.Errorf("Invalid entries in data result %v but expected %v", len(entries), 3)
 	}
 
 	firstEntry := entries[0]
@@ -413,32 +400,27 @@ func TestCreateAttributesMetadata(t *testing.T) {
 	}
 }
 
-func TestCreateAttributesMetadata_AttributeNotFound(t *testing.T) {
+func TestCreateAttributesData_AttributeNotFound(t *testing.T) {
 	tcert, preK0, err := loadTCertAndPreK0()
 
 	if err != nil {
 		t.Error(err)
 	}
 	tcertRaw := tcert.Raw
-	metadata := []byte{255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255}
 	attributeKeys := []string{"company"}
-	metadataObjRaw, err := CreateAttributesMetadata(tcertRaw, metadata, preK0, attributeKeys)
+	dataObjRaw, err := CreateAttributesData(tcertRaw, preK0, attributeKeys)
 	if err != nil {
 		t.Error(err)
 	}
 
-	var metadataObj pb.AttributesMetadata
-	err = proto.Unmarshal(metadataObjRaw, &metadataObj)
+	var dataObj pb.AttributesData
+	err = proto.Unmarshal(dataObjRaw, &dataObj)
 	if err != nil {
 		t.Error(err)
 	}
-	if bytes.Compare(metadataObj.Metadata, metadata) != 0 {
-		t.Errorf("Invalid metadata result %v but expected %v", metadataObj.Metadata, metadata)
-	}
-
-	entries := metadataObj.GetEntries()
-	if len(entries) != 2 {
-		t.Errorf("Invalid entries in metadata result %v but expected %v", len(entries), 3)
+	entries := dataObj.GetEntries()
+	if len(entries) != 3 {
+		t.Errorf("Invalid entries in data result %v but expected %v", len(entries), 3)
 	}
 
 	firstEntry := entries[0]
@@ -451,22 +433,50 @@ func TestCreateAttributesMetadata_AttributeNotFound(t *testing.T) {
 	}
 }
 
-func TestCreateAttributesMetadataObjectFromCert_AttributeNotFound(t *testing.T) {
+func TestCreateAttributesData_InvalidCertificate(t *testing.T) {
+	tcert, preK0, err := loadTCertAndPreK0()
+
+	if err != nil {
+		t.Error(err)
+	}
+	tcertRaw := tcert.Raw
+
+	//Became corrupt the certificate.
+	tcertRaw[0] = tcertRaw[0] + 124
+	attributeKeys := []string{"company"}
+	_, err = CreateAttributesData(tcertRaw, preK0, attributeKeys)
+	if err == nil {
+		t.Fatalf("Failed error expected because certificate is corrupt.")
+	}
+}
+
+func TestCreateAttributesDataObjectFromCert_AttributeEmptyName(t *testing.T) {
 	tcert, preK0, err := loadTCertAndPreK0()
 	if err != nil {
 		t.Error(err)
 	}
 
-	metadata := []byte{255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255}
-	attributeKeys := []string{"company"}
-	metadataObj := CreateAttributesMetadataObjectFromCert(tcert, metadata, preK0, attributeKeys)
-	if bytes.Compare(metadataObj.Metadata, metadata) != 0 {
-		t.Errorf("Invalid metadata result %v but expected %v", metadataObj.Metadata, metadata)
+	attributeKeys := []string{""}
+	dataObj := CreateAttributesDataObjectFromCert(tcert, preK0, attributeKeys)
+
+	entries := dataObj.GetEntries()
+	if len(entries) != 2 {
+		t.Errorf("Invalid entries in data result %v but expected %v", len(entries), 1)
+	}
+}
+
+func TestCreateAttributesDataObjectFromCert_AttributeNotFound(t *testing.T) {
+	tcert, preK0, err := loadTCertAndPreK0()
+	if err != nil {
+		t.Error(err)
 	}
 
-	entries := metadataObj.GetEntries()
-	if len(entries) != 2 {
-		t.Errorf("Invalid entries in metadata result %v but expected %v", len(entries), 3)
+	attributeKeys := []string{"company"}
+	dataObj := CreateAttributesDataObjectFromCert(tcert, preK0, attributeKeys)
+
+	entries := dataObj.GetEntries()
+	if len(entries) != 3 {
+		t.Errorf("Invalid entries in data result %v but expected %v", len(entries), 3)
 	}
 
 	firstEntry := entries[0]
@@ -475,8 +485,104 @@ func TestCreateAttributesMetadataObjectFromCert_AttributeNotFound(t *testing.T) 
 	}
 	_, err = GetKForAttribute("company", preK0, tcert)
 	if err == nil {
-		t.Fatalf("Test should faild because company is not included within the TCert.")
+		t.Fatalf("Test should failed because company is not included within the TCert.")
 	}
+}
+
+func TestCreateAttributesDataFromKeys(t *testing.T) {
+	_, preK0, err := loadTCertAndPreK0()
+	if err != nil {
+		t.Error(err)
+	}
+
+	positionKey := GetAttributeKey(preK0, "position")
+	headerKey := GetAttributeKey(preK0, HeaderAttributeName)
+	attributeKey := append(headerKey, positionKey...)
+	attributesData, err := CreateAttributesDataFromKeys([]string{"position"}, [][]byte{attributeKey})
+	if err != nil {
+		t.Error(err)
+	}
+	if len(attributesData.GetEntries()) != 2 {
+		t.Errorf("Test failed expected 2 entries (header and position) but returned [%v]", len(attributesData.GetEntries()))
+	}
+}
+
+func TestCreateAttributesDataFromKeys_NilAttributesNames(t *testing.T) {
+	_, preK0, err := loadTCertAndPreK0()
+	if err != nil {
+		t.Error(err)
+	}
+
+	positionKey := GetAttributeKey(preK0, "position")
+	headerKey := GetAttributeKey(preK0, HeaderAttributeName)
+	attributeKey := append(headerKey, positionKey...)
+	_, err = CreateAttributesDataFromKeys(nil, [][]byte{attributeKey})
+	if err == nil {
+		t.Fatalf("Test should failed because attributes names is nil.")
+	}
+
+}
+
+func TestCreateAttributesDataFromKeys_NilAttributesKeys(t *testing.T) {
+	_, err := CreateAttributesDataFromKeys([]string{"position"}, nil)
+	if err == nil {
+		t.Fatalf("Test should failed because attributes names is nil.")
+	}
+
+}
+
+func TestCreateAttributesDataFromKeys_EmptyAttributesNames(t *testing.T) {
+	_, preK0, err := loadTCertAndPreK0()
+	if err != nil {
+		t.Error(err)
+	}
+
+	positionKey := GetAttributeKey(preK0, "position")
+	headerKey := GetAttributeKey(preK0, HeaderAttributeName)
+	attributeKey := append(headerKey, positionKey...)
+	_, err = CreateAttributesDataFromKeys([]string{}, [][]byte{attributeKey})
+	if err == nil {
+		t.Fatalf("Test should failed because attributes names is nil.")
+	}
+
+}
+
+func TestCreateAttributesDataFromKeys_EmptyAttributesKeys(t *testing.T) {
+	_, err := CreateAttributesDataFromKeys([]string{"position"}, [][]byte{})
+	if err == nil {
+		t.Fatalf("Test should failed because attributes names is nil.")
+	}
+
+}
+
+func TestCreateAttributesDataFromKeys_NoreNamesThanKeys(t *testing.T) {
+	_, preK0, err := loadTCertAndPreK0()
+	if err != nil {
+		t.Error(err)
+	}
+
+	positionKey := GetAttributeKey(preK0, "position")
+	headerKey := GetAttributeKey(preK0, HeaderAttributeName)
+	attributeKey := append(headerKey, positionKey...)
+	_, err = CreateAttributesDataFromKeys([]string{"position", "age"}, [][]byte{attributeKey})
+	if err == nil {
+		t.Fatalf("Test should failed because there are most attributes names than attributes keys.")
+	}
+
+}
+
+func TestCreateAttributesDataFromKeys_ShortKey(t *testing.T) {
+	_, preK0, err := loadTCertAndPreK0()
+	if err != nil {
+		t.Error(err)
+	}
+
+	positionKey := GetAttributeKey(preK0, "position")
+	_, err = CreateAttributesDataFromKeys([]string{"position"}, [][]byte{positionKey})
+	if err == nil {
+		t.Fatalf("Test should failed because key is less than 64 bytes.")
+	}
+
 }
 
 func TestBuildAttributesHeader(t *testing.T) {
