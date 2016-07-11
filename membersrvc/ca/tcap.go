@@ -274,18 +274,21 @@ func (tcap *TCAP) generateExtensions(tcertid *big.Int, tidx []byte, enrollmentCe
 		return nil, nil, err
 	}
 
-	mac := hmac.New(primitives.GetDefaultHash(), preK1)
-	mac.Write(tcertid.Bytes())
-	preK0 := mac.Sum(nil)
-
-	// Compute encrypted EnrollmentID
-	enrollmentIDKey := attributes.GetAttributeKey(preK0, attributes.EnrollmentIDAttributeName)
+	var preK0 []byte
 
 	enrollmentID := []byte(enrollmentCert.Subject.CommonName)
 	enrollmentID = append(enrollmentID, Padding...)
 
 	encEnrollmentID := enrollmentID
+
 	if isEnabledAttributesEncryption() {
+		mac := hmac.New(primitives.GetDefaultHash(), preK1)
+		mac.Write(tcertid.Bytes())
+		preK0 = mac.Sum(nil)
+
+		// Compute encrypted EnrollmentID
+		enrollmentIDKey := attributes.GetAttributeKey(preK0, attributes.EnrollmentIDAttributeName)
+
 		encEnrollmentID, err = primitives.CBCPKCS7Encrypt(enrollmentIDKey, encEnrollmentID)
 		if err != nil {
 			return nil, nil, err

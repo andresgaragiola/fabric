@@ -25,8 +25,6 @@ import (
 	"github.com/hyperledger/fabric/core/crypto/primitives"
 	"github.com/hyperledger/fabric/core/crypto/utils"
 	obc "github.com/hyperledger/fabric/protos"
-
-	"github.com/spf13/viper"
 )
 
 func (client *clientImpl) createTransactionNonce() ([]byte, error) {
@@ -89,8 +87,7 @@ func (client *clientImpl) createDeployTx(chaincodeDeploymentSpec *obc.ChaincodeD
 }
 
 func getAttributesData(tCert tCert, attrs ...string) ([]byte, error) {
-	isAttributesEnabled := viper.GetBool("security.attributes.enabled")
-	if !isAttributesEnabled {
+	if tCert.GetPreK0() == nil {
 		return nil, nil
 	}
 
