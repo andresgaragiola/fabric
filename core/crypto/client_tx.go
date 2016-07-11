@@ -87,12 +87,12 @@ func (client *clientImpl) createDeployTx(chaincodeDeploymentSpec *obc.ChaincodeD
 }
 
 func getAttributesData(tCert tCert, attrs ...string) ([]byte, error) {
-	if tCert.GetPreK0() == nil {
-		return nil, nil
-	}
-
 	if tCert == nil {
 		return nil, errors.New("Invalid TCert.")
+	}
+
+	if tCert.GetPreK0() == nil {
+		return nil, nil
 	}
 
 	return attributes.CreateAttributesData(tCert.GetCertificate().Raw, tCert.GetPreK0(), attrs)
