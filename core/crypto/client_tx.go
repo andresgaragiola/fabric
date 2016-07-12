@@ -17,7 +17,6 @@ limitations under the License.
 package crypto
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/golang/protobuf/proto"
@@ -88,7 +87,7 @@ func (client *clientImpl) createDeployTx(chaincodeDeploymentSpec *obc.ChaincodeD
 
 func getAttributesData(tCert tCert, attrs ...string) ([]byte, error) {
 	if tCert == nil {
-		return nil, errors.New("Invalid TCert.")
+		return nil, nil
 	}
 
 	if tCert.GetPreK0() == nil {
