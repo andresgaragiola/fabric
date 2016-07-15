@@ -43,7 +43,7 @@ var (
 	// TCertAttributesHeaders is the ASN1 object identifier of attributes header.
 	TCertAttributesHeaders = asn1.ObjectIdentifier{1, 2, 3, 4, 5, 6, 9}
 
-	padding = []byte{255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255}
+	lenPadding = 16
 
 	//headerPrefix is the prefix used in the header exteion of the certificate.
 	headerPrefix = "00HEAD"
@@ -145,9 +145,20 @@ func ReadTCertAttribute(tcert *x509.Certificate, attributeName string, headerKey
 	return value, encrypted, nil
 }
 
+func getPaddingFromValue(attributeValue []byte) []byte {
+	return primitives.Hash(attributeValue)[:lenPadding]
+}
+
+func verifyPadding(attributeValue []byte, padding []byte) bool {
+	if len(padding) != lenPadding {
+		return false
+	}
+	return bytes.Compare(getPaddingFromValue(attributeValue), padding) == 0
+}
+
 //EncryptAttributeValue encrypts "attributeValue" using "attributeKey"
 func EncryptAttributeValue(attributeKey []byte, attributeValue []byte) ([]byte, error) {
-	value := append(attributeValue, padding...)
+	value := append(attributeValue, getPaddingFromValue(attributeValue)...)
 	return primitives.CBCPKCS7Encrypt(attributeKey, value)
 }
 
@@ -311,15 +322,15 @@ func BuildAttributesHeader(attributesHeader map[string]int) ([]byte, error) {
 
 //CheckPaddingValue checks the padding in 'value' and returns the 'value' without padding or an error if padding is invalid.
 func CheckPaddingValue(value []byte) ([]byte, error) {
-	lenPadding := len(padding)
 	lenValue := len(value)
 	if lenValue < lenPadding {
 		return nil, errors.New("Error invalid value.")
 	}
 	lenWithoutPadding := lenValue - lenPadding
+	value = value[0:lenWithoutPadding]
+	padding := getPaddingFromValue(value)
 	if bytes.Compare(padding[0:lenPadding], value[lenWithoutPadding:lenValue]) != 0 {
 		return nil, errors.New("Invalid Padding")
 	}
-	value = value[0:lenWithoutPadding]
 	return value, nil
 }
