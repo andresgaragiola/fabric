@@ -179,21 +179,7 @@ func DecryptAttributeValue(attributeKey []byte, encryptedValue []byte) ([]byte, 
 	if err != nil {
 		return nil, err
 	}
-<<<<<<< HEAD
 	return CheckPaddingValue(value)
-=======
-	lenValue := len(value)
-	if lenValue < lenPadding {
-		return nil, errors.New("Error invalid value. Decryption verification failed.")
-	}
-	lenWithoutPadding := lenValue - lenPadding
-	value = value[0:lenWithoutPadding]
-	padding := getPaddingFromValue(value)
-	if bytes.Compare(padding[0:lenPadding], value[lenWithoutPadding:lenValue]) != 0 {
-		return nil, errors.New("Error generating decryption key for value. Decryption verification failed.")
-	}
-	return value, nil
->>>>>>> 06ca4f1... Improve attributes padding in order.
 }
 
 //getKAndValueForAttribute derives K for the attribute "attributeName", checks the value padding and returns both key and decrypted value
@@ -336,15 +322,15 @@ func BuildAttributesHeader(attributesHeader map[string]int) ([]byte, error) {
 
 //CheckPaddingValue checks the padding in 'value' and returns the 'value' without padding or an error if padding is invalid.
 func CheckPaddingValue(value []byte) ([]byte, error) {
-	lenPadding := len(padding)
 	lenValue := len(value)
 	if lenValue < lenPadding {
 		return nil, errors.New("Error invalid value.")
 	}
 	lenWithoutPadding := lenValue - lenPadding
+	value = value[0:lenWithoutPadding]
+	padding := getPaddingFromValue(value)
 	if bytes.Compare(padding[0:lenPadding], value[lenWithoutPadding:lenValue]) != 0 {
 		return nil, errors.New("Invalid Padding")
 	}
-	value = value[0:lenWithoutPadding]
 	return value, nil
 }
