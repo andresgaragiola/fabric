@@ -329,10 +329,10 @@ func CheckPaddingValue(value []byte) ([]byte, error) {
 		return nil, errors.New("Error invalid value.")
 	}
 	lenWithoutPadding := lenValue - lenPadding
-	value = value[0:lenWithoutPadding]
+	answer := value[0:lenWithoutPadding]
 	padding := value[lenWithoutPadding:lenValue]
-	if !verifyPadding(value, padding) {
+	if !verifyPadding(answer, padding) {
 		return nil, errors.New("Invalid Padding")
 	}
-	return value, nil
+	return answer, nil
 }

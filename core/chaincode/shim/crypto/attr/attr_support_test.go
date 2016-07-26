@@ -21,6 +21,7 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"testing"
 
@@ -387,7 +388,7 @@ func TestVerifyAttributes_InvalidHeader(t *testing.T) {
 	}
 
 	//Change header extensions
-	tcert.Raw[583] = tcert.Raw[583] + 124
+	tcert.Raw[663] = tcert.Raw[663] + 124
 
 	tcertder := tcert.Raw
 	attributeData, err := attributes.CreateAttributesData(tcertder, prek0, attributeNames)
@@ -402,6 +403,12 @@ func TestVerifyAttributes_InvalidHeader(t *testing.T) {
 
 	_, err = handler.VerifyAttributes(&Attribute{Name: "position", Value: []byte("Software Engineer")})
 	if err == nil {
+		h, _ := primitives.GetCriticalExtension(tcert, attributes.TCertAttributesHeaders)
+		fmt.Printf("Header %v", h)
+		for i, v := range tcertder {
+			fmt.Printf("(%v, %v)", i, v)
+		}
+		fmt.Printf("\n")
 		t.Fatal("Error can't be nil.")
 	}
 }
@@ -689,7 +696,7 @@ func TestGetEnrollmentID(t *testing.T) {
 		t.Error(err)
 	}
 
-	expected := "diego\\institution_a\\00003"
+	expected := "diego\\institution_a"
 	if value != expected {
 		t.Errorf("Failed GetEnrollmentID() expected [%v] but return [%v]", expected, value)
 	}
