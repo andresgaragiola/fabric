@@ -277,8 +277,6 @@ func (tcap *TCAP) generateExtensions(tcertid *big.Int, tidx []byte, enrollmentCe
 	var preK0 []byte
 
 	enrollmentID := []byte(enrollmentCert.Subject.CommonName)
-	enrollmentID = append(enrollmentID, Padding...)
-
 	encEnrollmentID := enrollmentID
 
 	if isEnabledAttributesEncryption() {
@@ -289,7 +287,7 @@ func (tcap *TCAP) generateExtensions(tcertid *big.Int, tidx []byte, enrollmentCe
 		// Compute encrypted EnrollmentID
 		enrollmentIDKey := attributes.GetAttributeKey(preK0, attributes.EnrollmentIDAttributeName)
 
-		encEnrollmentID, err = primitives.CBCPKCS7Encrypt(enrollmentIDKey, encEnrollmentID)
+		encEnrollmentID, err = attributes.EncryptAttributeValue(enrollmentIDKey, encEnrollmentID)
 		if err != nil {
 			return nil, nil, err
 		}
